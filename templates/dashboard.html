@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadGuard AI - Complete Pothole Detection & Geospatial Studio</title>
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">⚠️</span>
+            <div>
+                <h1>RoadGuard AI</h1>
+                <p class="subtitle">AI Pothole Detection, Severity Analysis & Geospatial Hazard Tracking</p>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <!-- Vehicle Mode Selector -->
+            <div class="mode-selector">
+                <span class="mode-label">Vehicle Setup:</span>
+                <button id="modeCarBtn" class="btn btn-mode active" onclick="setVehicleMode('Car Dashcam')">🚗 Car Dashcam</button>
+                <button id="modeBikeBtn" class="btn btn-mode" onclick="setVehicleMode('Bike Helmet/Handlebar')">🏍️ Bike Mount</button>
+            </div>
+            <!-- Audio Mute / Unmute Toggle -->
+            <button id="muteBtn" class="btn btn-sm btn-secondary" onclick="toggleAudioMute()">🔊 Sound: ON</button>
+            <!-- Navbar Quick Stop Alarm Button -->
+            <button id="navStopAlarmBtn" class="btn btn-sm btn-danger" onclick="stopWarning()" style="display: none; font-weight: 700; border: 1px solid #f87171;">
+                🛑 Silence Alarm
+            </button>
+            <span class="status-indicator"><span class="pulse-dot"></span> AI Engine Online</span>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Active Pothole Warning HUD (matching PDF project document pages 1, 3, 4) -->
+        <div id="hazardAlertBanner" class="hazard-banner" style="display: none;">
+            <div class="hazard-content">
+                <span class="hazard-icon">⚠️</span>
+                <div>
+                    <h3 id="hazardTitle">POTHOLE AHEAD</h3>
+                    <p id="hazardSubtitle">⚠ 96% | Severity: High | Location: 17.3850, 78.4867</p>
+                </div>
+            </div>
+            <div class="hazard-actions">
+                <span id="hazardBadge" class="badge badge-high">HIGH SEVERITY</span>
+                <!-- EXPLICIT STOP WARNING BUTTON (Silences alarm and dismisses warning, keeps dashboard active!) -->
+                <button class="btn btn-stop-warning" onclick="stopWarning()">🛑 Stop Warning & Silence Alarm</button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Unified Detection Studio Panel (Image, Live Camera, Hardware)  -->
+        <!-- ============================================================== -->
+        <section class="card studio-card">
+            <div class="studio-header">
+                <h2>🎯 Detection Studio & Testing Console</h2>
+                <div class="studio-tabs">
+                    <button class="tab-btn active" onclick="switchTab('imageTab')">
+                        📸 Image Detection <span class="tab-tag">Start Here</span>
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('videoTab')">
+                        🎥 Video Detection <span class="tab-tag">New</span>
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('cameraTab')">
+                        📹 Live Camera Stream
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('hardwareTab')">
+                        🛠️ Car & Bike Physical Prototype
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Image Detection (Start Here) -->
+            <div id="imageTab" class="tab-content active">
+                <div class="studio-controls">
+                    <p class="instruction-text">
+                        Test road photos with mixed severity (Low + High risk craters), clean defect-free road, or upload your own road image to detect potholes and trigger warnings.
+                    </p>
+                    
+                    <div class="upload-form-box">
+                        <div class="form-row">
+                            <div class="file-picker-group">
+                                <label for="imageFileInput" class="file-picker-btn">📁 Choose Road Image File</label>
+                                <input type="file" id="imageFileInput" accept="image/*" onchange="onFileSelected(this)">
+                                <span id="selectedFileName" class="selected-file-text">No file chosen yet</span>
+                            </div>
+
+                            <!-- Explicit SUBMIT BUTTON -->
+                            <button id="submitBtn" class="btn btn-primary btn-submit" onclick="submitUploadedImage()">
+                                🚀 SUBMIT & RUN AI DETECTION
+                            </button>
+
+                            <!-- Direct Stop Warning Button right here in the controls -->
+                            <button id="formStopWarningBtn" class="btn btn-danger" onclick="stopWarning()" style="display: none; font-weight: 700; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);">
+                                🛑 Stop Warning & Silence Alarm
+                            </button>
+
+                            <span class="or-divider">OR TEST WITH:</span>
+
+                            <!-- One-click test real road sample 1: Mixed Potholes (High & Low Risk) -->
+                            <button id="sampleBtn" class="btn btn-secondary" onclick="runSampleDetection('mixed')">
+                                ⚡ Mixed Craters (Low & High Risk)
+                            </button>
+
+                            <!-- One-click test real road sample 2: Highway (Doc Page 3) -->
+                            <button id="highwayBtn" class="btn btn-secondary" onclick="runSampleDetection('highway')">
+                                🛣️ Highway Road (Doc Page 3)
+                            </button>
+
+                            <!-- One-click test real road sample 3: Clean Road (Zero Potholes) -->
+                            <button id="cleanBtn" class="btn btn-secondary" onclick="runSampleDetection('clean')" style="border-color: #22c55e;">
+                                ✅ Clean Road (Zero Potholes)
+                            </button>
+                        </div>
+                        
+                        <div class="backend-connection-badge">
+                            <span class="backend-dot"></span> 
+                            <span>Backend Endpoint: <code>POST /api/detect_image</code> (YOLO + SQLite Active on Network)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detection Result Viewer -->
+                <div id="imageResultBox" class="result-display-box">
+                    <div class="empty-state" id="emptyImageState">
+                        <span class="empty-icon">🛣️</span>
+                        <p>No detection run yet. Click <strong>"Detect on Test Road Sample"</strong> or upload a road image above.</p>
+                    </div>
+                    
+                    <div id="activeImageResult" style="display: none;" class="image-result-grid">
+                        <div class="result-image-pane">
+                            <h4>Annotated AI Result (Bounding Boxes & HUD)</h4>
+                            <img id="resultImagePreview" src="" alt="Annotated Result" class="preview-img">
+                        </div>
+                        <div class="result-telemetry-pane">
+                            <h4>Telemetry & Incident Details</h4>
+                            <div class="telemetry-item">
+                                <span class="t-label">Status:</span>
+                                <span class="t-value text-success" id="resStatus">Detection Completed</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="t-label">Potholes Found:</span>
+                                <span class="t-value" id="resCount">0</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="t-label">Estimated Severity:</span>
+                                <span class="badge" id="resSeverity">NONE</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="t-label">GPS Geotag:</span>
+                                <span class="t-value" id="resGPS">19.0760, 72.8777</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="t-label">Active Vehicle Mode:</span>
+                                <span class="t-value" id="resMode">Car Dashcam</span>
+                            </div>
+                            <!-- Telemetry Stop Warning Button -->
+                            <div id="telemetryWarningBox" style="display:none; margin-top:8px;">
+                                <button class="btn btn-danger" onclick="stopWarning()" style="width:100%; justify-content:center; font-weight:700;">
+                                    🛑 Stop Warning & Silence Alarm
+                                </button>
+                            </div>
+                            <div class="telemetry-note">
+                                ℹ️ <em>Severity is an estimated surface footprint metric. Recorded to SQLite database and pinned to the live map below.</em>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Video Detection -->
+            <div id="videoTab" class="tab-content">
+                <div class="studio-controls">
+                    <p class="instruction-text">
+                        Runs real-time AI pothole detection on recorded road driving footage (.mp4 / .avi / .mov). Watch the detector identify clear road surfaces, distant low-risk potholes, and close high-risk craters frame-by-frame.
+                    </p>
+                    <div class="form-row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+                        <button id="startTestVideoBtn" class="btn btn-primary" onclick="startTestVideoPlayback()">
+                            ⚡ Play Test Road Video (Clean → Low → High Craters)
+                        </button>
+                        <div class="file-picker-group">
+                            <label for="videoFileInput" class="file-picker-btn">📁 Choose Custom Video File</label>
+                            <input type="file" id="videoFileInput" accept="video/*" onchange="uploadAndPlayVideo(this)">
+                            <span id="selectedVideoName" class="selected-file-text">No custom video chosen</span>
+                        </div>
+                        <button id="stopVideoBtn" class="btn btn-danger" onclick="stopVideoPlayback()" style="display:none; font-weight:700;">
+                            ⏹ Stop Video Stream
+                        </button>
+                        <button id="videoStopWarningBtn" class="btn btn-danger" onclick="stopWarning()" style="display:none; font-weight:700;">
+                            🛑 Stop Warning & Silence Alarm
+                        </button>
+                    </div>
+                </div>
+                <div class="camera-stream-container">
+                    <div id="videoPlaceholder" class="cam-placeholder">
+                        <span class="empty-icon">🎥</span>
+                        <p>Video stream is idle. Click <strong>"Play Test Road Video"</strong> or upload your own road video above.</p>
+                    </div>
+                    <img id="videoFileStreamFeed" src="" alt="Video Detection Stream" style="display:none;" class="live-video-element">
+                </div>
+            </div>
+
+            <!-- Tab 3: Live Camera Detection -->
+            <div id="cameraTab" class="tab-content">
+                <div class="studio-controls">
+                    <p class="instruction-text">
+                        Streams your laptop camera or external USB dashcam in real time through Ultralytics YOLO with bounding boxes, HUD overlay, and audio beeps.
+                    </p>
+                    <div class="btn-group">
+                        <button id="startCamBtn" class="btn btn-success" onclick="startCameraStream()">
+                            ▶ Start Live Camera Stream
+                        </button>
+                        <button id="stopCamBtn" class="btn btn-danger" onclick="stopCameraStream()" style="display:none;">
+                            ⏹ Stop Camera Stream
+                        </button>
+                    </div>
+                </div>
+                <div class="camera-stream-container">
+                    <div id="camPlaceholder" class="cam-placeholder">
+                        <span class="empty-icon">📷</span>
+                        <p>Camera is currently idle. Click <strong>"Start Live Camera Stream"</strong> above.</p>
+                    </div>
+                    <img id="liveStreamFeed" src="" alt="Live Stream" style="display:none;" class="live-video-element">
+                </div>
+            </div>
+
+            <!-- Tab 3: Car & Bike Physical Prototype Guide -->
+            <div id="hardwareTab" class="tab-content">
+                <div class="hardware-grid">
+                    <div class="hardware-card">
+                        <div class="hw-badge">🚗 Car Front / Dashcam Setup</div>
+                        <h3>Windshield Suction Installation</h3>
+                        <ul class="hw-list">
+                            <li><strong>Mounting:</strong> Heavy-duty suction bracket behind the rearview mirror, angled ~15° downward toward the asphalt.</li>
+                            <li><strong>Vibration Control:</strong> Vehicle chassis and suspension absorb micro-vibrations, providing stable video frames.</li>
+                            <li><strong>Power:</strong> 12V cigarette lighter adapter or USB-C dashcam hardwire kit.</li>
+                            <li><strong>Driver Hazard Alert:</strong> Audio tone transmitted via vehicle cabin stereo or dashboard unit buzzer.</li>
+                            <li><strong>Damage Prevention:</strong> Protects low-profile tires, alloy rims, steering alignment, and front suspension.</li>
+                        </ul>
+                    </div>
+
+                    <div class="hardware-card">
+                        <div class="hw-badge">🏍️ Two-Wheeler / Bike Mount Setup</div>
+                        <h3>Handlebar & Helmet Installation</h3>
+                        <ul class="hw-list">
+                            <li><strong>Mounting:</strong> Anti-vibration phone handlebar clamp (e.g. QuadLock / RAM mount) or helmet chin GoPro bracket.</li>
+                            <li><strong>Vibration Control:</strong> Rubber dampening isolators prevent image sensor wobble from motorcycle engine revs.</li>
+                            <li><strong>Power:</strong> 5V 2A handlebar USB charging socket or internal rechargeable lithium battery.</li>
+                            <li><strong>Rider Hazard Alert:</strong> Bluetooth intercom inside helmet (Sena / Cardo) or loud piezo buzzer.</li>
+                            <li><strong>Safety Criticality:</strong> High severity craters pose an immediate risk of handlebar jerk, front-wheel lockup, or fall.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- KPI Metrics Grid -->
+        <section class="kpi-grid">
+            <div class="kpi-card total-card">
+                <div class="kpi-label">Total Detections</div>
+                <div class="kpi-value" id="kpiTotal">{{ stats.total }}</div>
+                <div class="kpi-sub">Incidents cataloged in SQLite</div>
+            </div>
+            <div class="kpi-card high-card">
+                <div class="kpi-label">High Severity</div>
+                <div class="kpi-value text-red" id="kpiHigh">{{ stats.high }}</div>
+                <div class="kpi-sub">Critical road craters</div>
+            </div>
+            <div class="kpi-card med-card">
+                <div class="kpi-label">Medium Severity</div>
+                <div class="kpi-value text-orange" id="kpiMedium">{{ stats.medium }}</div>
+                <div class="kpi-sub">Moderate surface dips</div>
+            </div>
+            <div class="kpi-card low-card">
+                <div class="kpi-label">Low Severity</div>
+                <div class="kpi-value text-yellow" id="kpiLow">{{ stats.low }}</div>
+                <div class="kpi-sub">Minor surface fissures</div>
+            </div>
+        </section>
+
+        <!-- Geospatial Hazard Map Section -->
+        <section class="card map-section">
+            <div class="card-header">
+                <h2>📍 Geospatial Road Hazard Map (GPS Pinned)</h2>
+                <div class="map-legend">
+                    <span class="legend-item"><span class="legend-circle bg-red"></span> High</span>
+                    <span class="legend-item"><span class="legend-circle bg-orange"></span> Medium</span>
+                    <span class="legend-item"><span class="legend-circle bg-yellow"></span> Low</span>
+                </div>
+            </div>
+            <div id="potholeMap" style="height: 420px; width: 100%; border-radius: 8px;"></div>
+        </section>
+
+        <!-- Detection History Table Section -->
+        <section class="card table-section">
+            <div class="card-header table-controls">
+                <h2>📋 Detection History & Evidence Archive</h2>
+                <div class="filter-group">
+                    <label for="severityFilter">Filter Severity:</label>
+                    <select id="severityFilter" class="select-input">
+                        <option value="ALL">All Severities</option>
+                        <option value="HIGH">High Severity Only</option>
+                        <option value="MEDIUM">Medium Severity Only</option>
+                        <option value="LOW">Low Severity Only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#ID</th>
+                            <th>Timestamp</th>
+                            <th>Vehicle Mode</th>
+                            <th>Estimated Severity</th>
+                            <th>Confidence</th>
+                            <th>Footprint Area</th>
+                            <th>GPS Geotag</th>
+                            <th>Snapshot</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detectionTableBody">
+                        {% for item in detections %}
+                        <tr data-severity="{{ item.severity }}">
+                            <td><strong>#{{ item.id }}</strong></td>
+                            <td>{{ item.timestamp }}</td>
+                            <td><span class="badge badge-mode">{{ item.vehicle_mode }}</span></td>
+                            <td>
+                                <span class="badge badge-{{ item.severity|lower }}">
+                                    {{ item.severity }}
+                                </span>
+                            </td>
+                            <td><strong>{{ (item.confidence * 100)|round(1) }}%</strong></td>
+                            <td>{{ item.box_area_pct }}% of frame</td>
+                            <td>
+                                {% if item.latitude and item.longitude %}
+                                    <a href="https://maps.google.com/?q={{ item.latitude }},{{ item.longitude }}" target="_blank" class="geo-link">
+                                        {{ item.latitude|round(4) }}, {{ item.longitude|round(4) }} ↗
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <img src="/detections/{{ item.image_path }}" 
+                                     alt="Pothole" 
+                                     class="table-thumb" 
+                                     onclick="openImageModal('/detections/{{ item.image_path }}')">
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRecord({{ item.id }})">Delete</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr id="emptyRow">
+                            <td colspan="9" style="text-align: center; padding: 30px; color: #888;">
+                                No pothole detections recorded yet. Run a detection above to log incidents.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Full-size Image Inspection -->
+    <div id="imageModal" class="modal" onclick="closeImageModal()">
+        <span class="modal-close">&times;</span>
+        <img class="modal-content" id="modalImg">
+        <div id="modalCaption"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

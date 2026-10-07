@@ -1,0 +1,12 @@
+# ==============================================================================
+# AI Pothole Detection System - Python Dependencies
+# Compatible with Windows 11 & Python 3.10 / 3.11 / 3.12
+# ==============================================================================
+ultralytics>=8.2.0
+opencv-python>=4.8.0
+numpy>=1.23.0
+flask>=3.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+requests>=2.28.0
+Pillow>=9.5.0

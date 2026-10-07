@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Pothole Detection & Road Hazard Dashboard</title>
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">⚠️</span>
+            <div>
+                <h1>RoadGuard AI</h1>
+                <p class="subtitle">AI Pothole Detection & Geospatial Hazard Dashboard</p>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <span class="status-indicator"><span class="pulse-dot"></span> System Online</span>
+            <button id="refreshBtn" class="btn btn-secondary">🔄 Refresh Data</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- KPI Metrics Grid -->
+        <section class="kpi-grid">
+            <div class="kpi-card total-card">
+                <div class="kpi-label">Total Detections</div>
+                <div class="kpi-value" id="kpiTotal">{{ stats.total }}</div>
+                <div class="kpi-sub">Lifetime incidents logged</div>
+            </div>
+            <div class="kpi-card high-card">
+                <div class="kpi-label">High Severity</div>
+                <div class="kpi-value text-red" id="kpiHigh">{{ stats.high }}</div>
+                <div class="kpi-sub">Critical road craters</div>
+            </div>
+            <div class="kpi-card med-card">
+                <div class="kpi-label">Medium Severity</div>
+                <div class="kpi-value text-orange" id="kpiMedium">{{ stats.medium }}</div>
+                <div class="kpi-sub">Moderate surface dips</div>
+            </div>
+            <div class="kpi-card low-card">
+                <div class="kpi-label">Low Severity</div>
+                <div class="kpi-value text-yellow" id="kpiLow">{{ stats.low }}</div>
+                <div class="kpi-sub">Minor surface cracks</div>
+            </div>
+        </section>
+
+        <!-- Geospatial Hazard Map Section -->
+        <section class="card map-section">
+            <div class="card-header">
+                <h2>📍 Geospatial Hazard Map</h2>
+                <div class="map-legend">
+                    <span class="legend-item"><span class="legend-circle bg-red"></span> High</span>
+                    <span class="legend-item"><span class="legend-circle bg-orange"></span> Medium</span>
+                    <span class="legend-item"><span class="legend-circle bg-yellow"></span> Low</span>
+                </div>
+            </div>
+            <div id="potholeMap" style="height: 420px; width: 100%; border-radius: 8px;"></div>
+        </section>
+
+        <!-- Detection History Table Section -->
+        <section class="card table-section">
+            <div class="card-header table-controls">
+                <h2>📋 Detection History Log</h2>
+                <div class="filter-group">
+                    <label for="severityFilter">Filter Severity:</label>
+                    <select id="severityFilter" class="select-input">
+                        <option value="ALL">All Severities</option>
+                        <option value="HIGH">High Severity Only</option>
+                        <option value="MEDIUM">Medium Severity Only</option>
+                        <option value="LOW">Low Severity Only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#ID</th>
+                            <th>Date & Time</th>
+                            <th>Vehicle Mode</th>
+                            <th>Estimated Severity</th>
+                            <th>Confidence</th>
+                            <th>Visual Footprint</th>
+                            <th>GPS Coordinates</th>
+                            <th>Screenshot</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detectionTableBody">
+                        {% for item in detections %}
+                        <tr data-severity="{{ item.severity }}">
+                            <td><strong>#{{ item.id }}</strong></td>
+                            <td>{{ item.timestamp }}</td>
+                            <td><span class="badge badge-mode">{{ item.vehicle_mode }}</span></td>
+                            <td>
+                                <span class="badge badge-{{ item.severity|lower }}">
+                                    {{ item.severity }}
+                                </span>
+                            </td>
+                            <td><strong>{{ (item.confidence * 100)|round(1) }}%</strong></td>
+                            <td>{{ item.box_area_pct }}% of frame</td>
+                            <td>
+                                {% if item.latitude and item.longitude %}
+                                    <a href="https://maps.google.com/?q={{ item.latitude }},{{ item.longitude }}" target="_blank" class="geo-link">
+                                        {{ item.latitude|round(4) }}, {{ item.longitude|round(4) }} ↗
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <img src="/detections/{{ item.image_path }}" 
+                                     alt="Pothole" 
+                                     class="table-thumb" 
+                                     onclick="openImageModal('/detections/{{ item.image_path }}')">
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRecord({{ item.id }})">Delete</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr id="emptyRow">
+                            <td colspan="9" style="text-align: center; padding: 30px; color: #888;">
+                                No pothole detections recorded yet. Run <code>python run_detection.py</code> to capture detections.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Full-size Image Inspection -->
+    <div id="imageModal" class="modal" onclick="closeImageModal()">
+        <span class="modal-close">&times;</span>
+        <img class="modal-content" id="modalImg">
+        <div id="modalCaption"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
